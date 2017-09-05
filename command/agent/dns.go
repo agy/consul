@@ -311,6 +311,13 @@ PARSE:
 		goto INVALID
 	}
 
+	// If this query is for a AAAA record and we're configed to disable, return NXDOMAIN
+	if d.config.DisableAAAA && req.Question[0].Qtype == dns.TypeAAAA {
+		metrics.IncrCounter([]string{"consul", "dns", "rejected_aaaa"}, 1)
+		d.logger.Printf("[DEBUG] dns: request for AAAA %s rejected", qName)
+		goto INVALID
+	}
+
 	// If this is a SRV query the "service" label is optional, we add it back to use the
 	// existing code-path.
 	if req.Question[0].Qtype == dns.TypeSRV && strings.HasPrefix(labels[n-1], "_") {

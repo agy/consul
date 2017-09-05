@@ -3792,6 +3792,54 @@ func TestDNS_NonExistingLookup(t *testing.T) {
 	}
 }
 
+func TestDNS_DisabledAAAA(t *testing.T) {
+	confFn := func(c *DNSConfig) {
+		c.DisableAAAA = true
+	}
+	dir, srv := makeDNSServerConfig(t, nil, confFn)
+	defer os.RemoveAll(dir)
+	defer srv.agent.Shutdown()
+
+	testrpc.WaitForLeader(t, srv.agent.RPC, "dc1")
+
+	// Register a v6-only service.
+	{
+		args := &structs.RegisterRequest{
+			Datacenter: "dc1",
+			Node:       "foov6",
+			Address:    "fe80::1",
+			Service: &structs.NodeService{
+				Service: "webv6",
+				Port:    8000,
+			},
+		}
+
+		var out struct{}
+		if err := srv.agent.RPC("Catalog.Register", args, &out); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	// Query the registered service - we should get back NXDOMAIN
+	m := new(dns.Msg)
+	m.SetQuestion("webv6.service.consul.", dns.TypeAAAA)
+
+	addr, _ := srv.agent.config.ClientListener("", srv.agent.config.Ports.DNS)
+	c := new(dns.Client)
+	in, _, err := c.Exchange(m, addr.String())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(in.Answer) != 0 {
+		t.Fatalf("Bad: %#v", in)
+	}
+
+	if in.Rcode != dns.RcodeNameError {
+		t.Fatalf("Bad: %#v", in)
+	}
+}
+
 func TestDNS_NonExistingLookupEmptyAorAAAA(t *testing.T) {
 	dir, srv := makeDNSServer(t)
 	defer os.RemoveAll(dir)

@@ -118,6 +118,10 @@ type DNSConfig struct {
 	// config was added as an opt-out.
 	DisableCompression bool `mapstructure:"disable_compression"`
 
+	// DisableAAAA is used to control whether DNS quests for AAAA records
+	// are honoured.
+	DisableAAAA bool `mapstructure:"disable_aaaa"`
+
 	// RecursorTimeout specifies the timeout in seconds
 	// for Consul's internal dns client used for recursion.
 	// This value is used for the connection, read and write timeout.
@@ -1763,6 +1767,9 @@ func MergeConfig(a, b *Config) *Config {
 	}
 	if b.DNSConfig.DisableCompression {
 		result.DNSConfig.DisableCompression = true
+	}
+	if b.DNSConfig.DisableAAAA {
+		result.DNSConfig.DisableAAAA = true
 	}
 	if b.DNSConfig.RecursorTimeout != 0 {
 		result.DNSConfig.RecursorTimeout = b.DNSConfig.RecursorTimeout
